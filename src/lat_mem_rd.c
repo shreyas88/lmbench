@@ -63,21 +63,17 @@ main(int ac, char **av)
 
         len = atoi(av[optind]);
 	len *= 1024 * 1024;
+        range = len;
 
 	if (optind == ac - 1) {
 		fprintf(stderr, "\"stride=%d\n", (int)STRIDE);
-		for (range = LOWER; range <= len; range = step(range)) {
-			loads(len, range, STRIDE, parallel, 
-			      warmup, repetitions);
-		}
+		loads(len, range, STRIDE, parallel, 
+		      warmup, repetitions);
 	} else {
 		for (i = optind + 1; i < ac; ++i) {
 			stride = bytes(av[i]);
 			fprintf(stderr, "\"stride=%d\n", (int)stride);
-			for (range = LOWER; range <= len; range = step(range)) {
-				loads(len, range, stride, parallel, 
-				      warmup, repetitions);
-			}
+			loads(len, range, stride, parallel,warmup, repetitions);
 			fprintf(stderr, "\n");
 		}
 	}
