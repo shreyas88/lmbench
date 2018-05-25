@@ -16,7 +16,12 @@ char	*id = "$Id: s.lat_mem_rd.c 1.13 98/06/30 16:13:49-07:00 lm@lm.bitmover.com 
 
 #include "bench.h"
 #include <linux/perf_event.h>
+#include <linux/hw_breakpoint.h>
 #include <unistd.h>
+#include <sys/ioctl.h>
+#include <linux/perf_event.h>
+#include <asm/unistd.h>
+
 
 #define STRIDE  (512/sizeof(char *))
 #define	LOWER	512
@@ -170,7 +175,7 @@ benchmark_loads(iter_t iterations, void *cookie)
         long long cycles = get_cycle_cnt(fd_cycle);
         printf("Instructions: %lld\n", instructions);
         printf("Cycles: %lld\n", cycles);
-        double ipc = double(instructions)/double(cycles);
+        double ipc = ((double)instructions)/((double)cycles);
         printf("IPC: %.2f\n", ipc);
 }
 
