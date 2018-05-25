@@ -15,6 +15,9 @@
 char	*id = "$Id: s.lat_mem_rd.c 1.13 98/06/30 16:13:49-07:00 lm@lm.bitmover.com $\n";
 
 #include "bench.h"
+#include <linux/perf_event.h>
+#include <unistd.h>
+
 #define STRIDE  (512/sizeof(char *))
 #define	LOWER	512
 void	loads(size_t len, size_t range, size_t stride, 
@@ -80,6 +83,62 @@ main(int ac, char **av)
 	return(0);
 }
 
+
+long
+perf_event_open(struct perf_event_attr *hw_event, pid_t pid,
+                int cpu, int group_fd, unsigned long flags)
+{
+    int ret;
+
+    ret = syscall(__NR_perf_event_open, hw_event, pid, cpu,
+                  group_fd, flags);
+    return ret;
+}
+
+
+int 
+setup_instruction_count(pid_t cpid)
+{
+     struct perf_event_attr pe;
+     memset(&pe, 0, sizeof(struct perf_event_attr));
+     pe.type = PERF_TYPE_HARDWARE;
+     pe.size = sizeof(struct perf_event_attr);
+     pe.config = PERF_COUNT_HW_INSTRUCTIONS;
+     int fd = perf_event_open(&pe, cpid, -1, -1, 0);
+     return fd;
+}
+
+int 
+setup_cycle_count(pid_t cpid, int leader)
+{
+     struct perf_event_attr pe;
+     memset(&pe, 0, sizeof(struct perf_event_attr));
+     pe.type = PERF_TYPE_HARDWARE;
+     pe.size = sizeof(struct perf_event_attr);
+     pe.config = PERF_COUNT_HW_CPU_CYCLES;
+     int fd = perf_event_open(&pe, cpid, -1, leader, 0);
+     return fd;
+}
+
+long long
+get_instruction_cnt(int fd_instr)
+{
+    long long instructions = 0;
+    read(fd_instr, &instructions, sizeof(long long));
+    return instructions;
+}
+
+
+long long
+get_cycle_cnt(int fd_cycle)
+{
+    long long cycles = 0;
+    read(fd_cycle, &cycles, sizeof(long long));
+    return cycles;
+}
+
+
+
 #define	ONE	p = (char **)*p;
 #define	FIVE	ONE ONE ONE ONE ONE
 #define	TEN	FIVE FIVE
@@ -90,6 +149,9 @@ main(int ac, char **av)
 void
 benchmark_loads(iter_t iterations, void *cookie)
 {
+        int fd_instr = setup_instruction_count(getpid());
+        int fd_cycle = setup_cycle_count(getpid(), fd_instr); 
+        
 	struct mem_state* state = (struct mem_state*)cookie;
 	register char **p = (char**)state->p[0];
 	register size_t i;
@@ -103,6 +165,13 @@ benchmark_loads(iter_t iterations, void *cookie)
 
 	use_pointer((void *)p);
 	state->p[0] = (char*)p;
+
+        long long instructions = get_instruction_cnt(fd_instr);
+        long long cycles = get_cycle_cnt(fd_cycle);
+        printf("Instructions: %lld\n", instructions);
+        printf("Cycles: %lld\n", cycles);
+        double ipc = double(instructions)/double(cycles);
+        printf("IPC: %.2f\n", ipc);
 }
 
 
