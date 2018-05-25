@@ -125,23 +125,40 @@ setup_cycle_count(pid_t cpid, int leader)
      return fd;
 }
 
+
+int 
+setup_l1d_miss_count(pid_t cpid, int leader)
+{
+     struct perf_event_attr pe;
+     memset(&pe, 0, sizeof(struct perf_event_attr));
+     pe.type = PERF_TYPE_HW_CACHE;
+     pe.size = sizeof(struct perf_event_attr);
+     pe.config = ((PERF_COUNT_HW_CACHE_L1D) | (PERF_COUNT_HW_CACHE_OP_READ << 8) |
+                  (PERF_COUNT_HW_CACHE_RESULT_MISS << 16));
+     int fd = perf_event_open(&pe, cpid, -1, leader, 0);
+     return fd;
+}
+
+int 
+setup_l1d_acc_count(pid_t cpid, int leader)
+{
+     struct perf_event_attr pe;
+     memset(&pe, 0, sizeof(struct perf_event_attr));
+     pe.type = PERF_TYPE_HW_CACHE;
+     pe.size = sizeof(struct perf_event_attr);
+     pe.config = ((PERF_COUNT_HW_CACHE_L1D) | (PERF_COUNT_HW_CACHE_OP_READ << 8) |
+                  (PERF_COUNT_HW_CACHE_RESULT_ACCESS << 16));
+     int fd = perf_event_open(&pe, cpid, -1, leader, 0);
+     return fd;
+}
+
 long long
-get_instruction_cnt(int fd_instr)
+get_cnt(int fd_instr)
 {
     long long instructions = 0;
     read(fd_instr, &instructions, sizeof(long long));
     return instructions;
 }
-
-
-long long
-get_cycle_cnt(int fd_cycle)
-{
-    long long cycles = 0;
-    read(fd_cycle, &cycles, sizeof(long long));
-    return cycles;
-}
-
 
 
 #define	ONE	p = (char **)*p;
@@ -156,7 +173,10 @@ benchmark_loads(iter_t iterations, void *cookie)
 {
         int fd_instr = setup_instruction_count(getpid());
         int fd_cycle = setup_cycle_count(getpid(), fd_instr); 
+        int fd_l1miss = setup_l1d_miss_count(getpid(), fd_instr);
+        int fd_l1acc = setup_l1d_acc_count(getpid(), fd_instr);
         
+ 
 	struct mem_state* state = (struct mem_state*)cookie;
 	register char **p = (char**)state->p[0];
 	register size_t i;
@@ -171,12 +191,16 @@ benchmark_loads(iter_t iterations, void *cookie)
 	use_pointer((void *)p);
 	state->p[0] = (char*)p;
 
-        long long instructions = get_instruction_cnt(fd_instr);
-        long long cycles = get_cycle_cnt(fd_cycle);
+        long long instructions = get_cnt(fd_instr);
+        long long cycles = get_cnt(fd_cycle);
+        long long miss = get_cnt(fd_l1miss);
+        long long acc = get_cnt(fd_l1acc);
         printf("Instructions: %lld\n", instructions);
         printf("Cycles: %lld\n", cycles);
         double ipc = ((double)instructions)/((double)cycles);
+        double miss_rate = ((double)miss)/((double)acc);
         printf("IPC: %.2f\n", ipc);
+        printf("L1 miss rate: %.2f\n", miss_rate);
 }
 
 
