@@ -131,10 +131,9 @@ setup_l1d_miss_count(pid_t cpid, int leader)
 {
      struct perf_event_attr pe;
      memset(&pe, 0, sizeof(struct perf_event_attr));
-     pe.type = PERF_TYPE_HW_CACHE;
+     pe.type = PERF_TYPE_HARDWARE;
      pe.size = sizeof(struct perf_event_attr);
-     pe.config = ((PERF_COUNT_HW_CACHE_L1D) | (PERF_COUNT_HW_CACHE_OP_READ << 8) |
-                  (PERF_COUNT_HW_CACHE_RESULT_MISS << 16));
+     pe.config = PERF_COUNT_HW_CACHE_MISSES;
      int fd = perf_event_open(&pe, cpid, -1, leader, 0);
      return fd;
 }
@@ -144,10 +143,9 @@ setup_l1d_acc_count(pid_t cpid, int leader)
 {
      struct perf_event_attr pe;
      memset(&pe, 0, sizeof(struct perf_event_attr));
-     pe.type = PERF_TYPE_HW_CACHE;
+     pe.type = PERF_TYPE_HARDWARE;
      pe.size = sizeof(struct perf_event_attr);
-     pe.config = ((PERF_COUNT_HW_CACHE_L1D) | (PERF_COUNT_HW_CACHE_OP_READ << 8) |
-                  (PERF_COUNT_HW_CACHE_RESULT_ACCESS << 16));
+     pe.config = PERF_COUNT_HW_CACHE_REFERENCES;
      int fd = perf_event_open(&pe, cpid, -1, leader, 0);
      return fd;
 }
@@ -198,6 +196,8 @@ benchmark_loads(iter_t iterations, void *cookie)
         printf("Instructions: %lld\n", instructions);
         printf("Cycles: %lld\n", cycles);
         double ipc = ((double)instructions)/((double)cycles);
+	printf("L1 misses: %lld\n", miss);
+	printf("L1 accesses: %lld\n", acc);
         double miss_rate = ((double)miss)/((double)acc);
         printf("IPC: %.2f\n", ipc);
         printf("L1 miss rate: %.2f\n", miss_rate);
